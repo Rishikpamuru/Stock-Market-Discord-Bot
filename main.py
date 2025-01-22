@@ -176,7 +176,16 @@ async def buy(ctx, stock_code: str, amount: int = 1):
     else:
         await ctx.send(f"```\nError: Insufficient funds\n• Cost per share: ${price}\n• Total cost needed: ${total_cost}\n• Your balance: ${users[user_id]['balance']}\n```")
 
-
+@bot.command()
+async def arrest(ctx, member: discord.Member = None):
+    x = member
+    if ctx.channel.id not in ALLOWED_CHANNELS:
+        await ctx.send("\nError: Bot can only be used in #stocks.\n")
+        return
+    if member is None:
+        await ctx.send("\nError: You need to specify a member to arrest.\n```")
+    else:
+        await ctx.send(f"```\n{x} is arrested!!!\n```")
 @bot.command()
 async def sell(ctx, stock_code: str, amount: int = 1):
     stock_code = stock_code.lower()
@@ -223,16 +232,25 @@ async def sell(ctx, stock_code: str, amount: int = 1):
 
 
 @bot.command()
-async def mvalue(ctx):
+async def mvalue(ctx, member: discord.Member = None):
     user_id = ctx.author.id
+    if member is not None:
+        user_id = member.id
+        x = True
     if ctx.channel.id not in ALLOWED_CHANNELS:
         await ctx.send("```\nError: Bot can only be used in #stocks.\n```")
         return
+  
+
     if user_id not in users:
         users[user_id] = {'balance': 50, 'last_pay_time': 0, 'stocks': {}}
     
     portfolio = [f"Current Balance: ${users[user_id]['balance']}"]
-    portfolio.append("\nYour Stock Portfolio:")
+    if x == True:
+        portfolio.append(f"\n{member.name}'s Stock Portfolio:")
+    else:
+        portfolio.append("\nYour Stock Portfolio:")
+
     
     if not users[user_id].get('stocks'):
         portfolio.append("• No stocks owned")
@@ -362,8 +380,10 @@ async def cmds(ctx):
         "• -buy [code] [amount] - Buy stocks",
         "• -sell [code] [amount] - Sell stocks",
         "• -mvalue - View your portfolio",
+        "• -mvalue [user] - View a user's portfolio",
         "• -pay - Receive daily payment",
-        "• -transfer - transfer monet to another user",
+        "• -transfer [user] - transfer monet to another user",
+        "• -arrest [user] - arrest a user",
         "• -cmds - Show this command list"
     ]
     await ctx.send(f"```\n{chr(10).join(commands)}\n```")
