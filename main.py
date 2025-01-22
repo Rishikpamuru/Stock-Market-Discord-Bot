@@ -20,7 +20,8 @@ bot = commands.Bot(command_prefix="-", intents=intents)
 STOCKS = {
     'rgi': 'Reedy Gangstas Inc',
     'wb': 'Weylin Businesses',
-    'gbc': 'Good Boy Corp'
+    'gbc': 'Good Boy Corp',
+    'vi': 'Vidur Industries'
 }
 
 def connect_db():
@@ -234,9 +235,10 @@ async def sell(ctx, stock_code: str, amount: int = 1):
 @bot.command()
 async def mvalue(ctx, member: discord.Member = None):
     user_id = ctx.author.id
+    boolean1 = False
     if member is not None:
         user_id = member.id
-        x = True
+        boolean1 = True
     if ctx.channel.id not in ALLOWED_CHANNELS:
         await ctx.send("```\nError: Bot can only be used in #stocks.\n```")
         return
@@ -246,7 +248,7 @@ async def mvalue(ctx, member: discord.Member = None):
         users[user_id] = {'balance': 50, 'last_pay_time': 0, 'stocks': {}}
     
     portfolio = [f"Current Balance: ${users[user_id]['balance']}"]
-    if x == True:
+    if boolean1 == True:
         portfolio.append(f"\n{member.name}'s Stock Portfolio:")
     else:
         portfolio.append("\nYour Stock Portfolio:")
@@ -437,5 +439,5 @@ async def transfer(ctx, recipient: discord.Member, amount: int):
 
 
 
-# Replace with your bot token
+#bot token
 bot.run(config.api)
