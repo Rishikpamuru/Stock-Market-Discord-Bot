@@ -10,7 +10,7 @@ STOCKS = {
     'wb': 'Weylin Businesses',
     'gbc': 'Good Boy Corp',
     'vi': 'Vidur Industries',
-    'sp': 'sparkyCORP'
+    'sp': 'sparkyCORP' 
 }
 db_file = 'users.db'
 ALLOWED_CHANNELS = [1331140740587196416, 1331148632883331155]
