@@ -13,7 +13,7 @@ STOCKS = {
     'sp': 'sparkyCORP' 
 }
 db_file = 'users.db'
-ALLOWED_CHANNELS = [1331140740587196416, 1331148632883331155]
+ALLOWED_CHANNELS = [1331140740587196416, 1331148632883331155,1468486620930904260]
 
 # Shared data
 stock_prices = {}
@@ -111,24 +111,62 @@ def setup_commands(bot):
             return
 
         price = stock_prices.get(stock_code, 50)
-
-        # Randomly increase the price between 1 and 5
-        #price_increase = random.randint(1, 5)
-        price += amount
-
-        total_cost = amount * price
+        total_cost = 0
+        temp_price = price
+        # Simulate price increase for each share to calculate total cost
+        for _ in range(amount):
+            total_cost += temp_price
+            temp_price = temp_price + 1 + random.randint(1, 10)
 
         if users[user_id]['balance'] >= total_cost:
             if stock_code not in users[user_id]['stocks']:
                 users[user_id]['stocks'][stock_code] = 0
             users[user_id]['stocks'][stock_code] += amount
             users[user_id]['balance'] -= total_cost
-            stock_prices[stock_code] = price  # Update stock price after the purchase
+            # Set the new price to original + moderate increase (not full temp_price)
+            new_price = price + (amount // 2) + random.randint(1, 5)
+            stock_prices[stock_code] = new_price
             save_data(stock_prices, users)
             
-            await ctx.send(f"```\nTransaction Successful:\n• Bought: {amount} {STOCKS[stock_code]} stock(s)\n• Cost per share: ${price}\n• Total cost: ${total_cost}\n• Remaining balance: ${users[user_id]['balance']}\n```")
+            await ctx.send(f"```\nTransaction Successful:\n• Bought: {amount} {STOCKS[stock_code]} stock(s)\n• Total cost: ${total_cost}\n• Remaining balance: ${users[user_id]['balance']}\n```")
         else:
-            await ctx.send(f"```\nError: Insufficient funds\n• Cost per share: ${price}\n• Total cost needed: ${total_cost}\n• Your balance: ${users[user_id]['balance']}\n```")
+            await ctx.send(f"```\nError: Insufficient funds\n• Total cost needed: ${total_cost}\n• Your balance: ${users[user_id]['balance']}\n```")
+
+    @bot.command()
+    async def buymax(ctx, stock_code: str):
+        stock_code = stock_code.lower()
+        user_id = ctx.author.id
+        if ctx.channel.id not in ALLOWED_CHANNELS:
+            await ctx.send("```\nError: Bot can only be used in #stocks.\n```")
+            return
+        if user_id not in users:
+            users[user_id] = {'balance': 50, 'last_pay_time': 0, 'stocks': {}}
+        if 'stocks' not in users[user_id]:
+            users[user_id]['stocks'] = {}
+        if stock_code not in STOCKS:
+            await ctx.send("```\nError: Invalid stock code.\nUse -stock to see available stocks.\n```")
+            return
+        balance = users[user_id]['balance']
+        price = stock_prices.get(stock_code, 50)
+        amount = 0
+        total_cost = 0
+        temp_price = price
+        # Simulate price increase for each share
+        while balance >= temp_price:
+            balance -= temp_price
+            total_cost += temp_price
+            amount += 1
+            temp_price = temp_price + 1 + random.randint(1, 10)
+        if amount < 1:
+            await ctx.send(f"```\nError: Insufficient funds\n• Cost per share: ${price}\n• Your balance: ${users[user_id]['balance']}\n```")
+            return
+        users[user_id]['stocks'][stock_code] = users[user_id]['stocks'].get(stock_code, 0) + amount
+        users[user_id]['balance'] -= total_cost
+        # Set the new price to original + moderate increase (not full temp_price)
+        new_price = price + (amount // 2) + random.randint(1, 5)
+        stock_prices[stock_code] = new_price
+        save_data(stock_prices, users)
+        await ctx.send(f"```\nTransaction Successful:\n• Bought: {amount} {STOCKS[stock_code]} stock(s)\n• Total cost: ${total_cost}\n• Remaining balance: ${users[user_id]['balance']}\n```")
 
     @bot.command()
     async def arrest(ctx, member: discord.Member = None):
@@ -163,27 +201,56 @@ def setup_commands(bot):
         if user_stock_amount >= amount:
             # Get the current price of the stock
             price = stock_prices.get(stock_code, 50)
-
-            # Randomly decrease the price between 1 and 10
-            price -= amount
-            
-            # Ensure the price doesn't go below 0
-            if price < 0:
-                price = 0
-
-            total_value = amount * price
-            
-            # Update user's stock and balance
+            total_value = 0
+            temp_price = price
+            # Simulate price decrease for each share sold
+            for _ in range(amount):
+                total_value += temp_price
+                temp_price = temp_price - 1 - random.randint(1, 10)
+                if temp_price < 0:
+                    temp_price = 0
             users[user_id]['stocks'][stock_code] -= amount
             users[user_id]['balance'] += total_value
-            stock_prices[stock_code] = price  # Update stock price after the sale
+            # Now update the price for future transactions
+            stock_prices[stock_code] = temp_price
             save_data(stock_prices, users)
             
             await ctx.send(f"```\nTransaction Successful:\n• Sold: {amount} {STOCKS[stock_code]} stock(s)\n• Price per share: ${price}\n• Total received: ${total_value}\n• New balance: ${users[user_id]['balance']}\n```")
         else:
             await ctx.send(f"```\nError: Insufficient stocks\n• Owned: {user_stock_amount} shares\n• Attempted to sell: {amount} shares\n• Stock: {STOCKS[stock_code]}\n```")
 
-
+    @bot.command()
+    async def sellmax(ctx, stock_code: str):
+        stock_code = stock_code.lower()
+        user_id = ctx.author.id
+        if ctx.channel.id not in ALLOWED_CHANNELS:
+            await ctx.send("```\nError: Bot can only be used in #stocks.\n```")
+            return
+        if user_id not in users or 'stocks' not in users[user_id]:
+            await ctx.send("```\nError: No stocks owned.\nUse -stock to see available stocks to buy.\n```")
+            return
+        if stock_code not in STOCKS:
+            await ctx.send("```\nError: Invalid stock code.\nUse -stock to see available stocks.\n```")
+            return
+        user_stock_amount = users[user_id]['stocks'].get(stock_code, 0)
+        if user_stock_amount < 1:
+            await ctx.send(f"```\nError: You do not own any shares of {STOCKS[stock_code]}.\n```")
+            return
+        price = stock_prices.get(stock_code, 50)
+        total_value = 0
+        temp_price = price
+        amount = user_stock_amount
+        # Simulate price decrease for each share
+        for _ in range(amount):
+            total_value += temp_price
+            temp_price = temp_price - 1 - random.randint(1, 10)
+            if temp_price < 0:
+                temp_price = 0
+        users[user_id]['stocks'][stock_code] = 0
+        users[user_id]['balance'] += total_value
+        stock_prices[stock_code] = temp_price
+        save_data(stock_prices, users)
+        await ctx.send(f"```\nTransaction Successful:\n• Sold: {amount} {STOCKS[stock_code]} stock(s)\n• Total received: ${total_value}\n• New balance: ${users[user_id]['balance']}\n```")
 
     @bot.command()
     async def mvalue(ctx, member: discord.Member = None):
@@ -333,7 +400,9 @@ def setup_commands(bot):
             "• -stock - View all stocks",
             "• -stock [code] - View specific stock details",
             "• -buy [code] [amount] - Buy stocks",
+            "• -buymax [code] - Buy the maximum number of stocks you can afford",
             "• -sell [code] [amount] - Sell stocks",
+            "• -sellmax [code] - Sell all stocks you own of a type",
             "• -mvalue - View your portfolio",
             "• -mvalue [user] - View a user's portfolio",
             "• -pay - Receive daily payment",
@@ -444,5 +513,24 @@ def setup_commands(bot):
         save_data(stock_prices, users)
 
         await ctx.send(f"```\nTransfer Successful:\n• Transferred: ${amount} to {recipient.name}\n• Your new balance: ${users[sender_id]['balance']}\n• {recipient.name}'s new balance: ${users[recipient_id]['balance']}\n```")
+
+    @bot.command()
+    async def setprice(ctx, stock_code: str, new_price: int):
+        if ctx.channel.id not in ALLOWED_CHANNELS:
+            await ctx.send("```\nError: Bot can only be used in #stocks.\n```")
+            return
+        if not ctx.author.guild.permissions.administrator:
+            await ctx.send("```\nError: You need administrator permissions to use this command.\n```")
+            return
+        stock_code = stock_code.lower()
+        if stock_code not in STOCKS:
+            await ctx.send("```\nError: Invalid stock code.\nUse -stock to see available stocks.\n```")
+            return
+        if new_price < 0:
+            await ctx.send("```\nError: Price must be non-negative.\n```")
+            return
+        stock_prices[stock_code] = new_price
+        save_data(stock_prices, users)
+        await ctx.send(f"```\nAdmin Price Change Successful:\n• {STOCKS[stock_code]} ({stock_code.upper()}) price set to ${new_price}\n```")
 
 
