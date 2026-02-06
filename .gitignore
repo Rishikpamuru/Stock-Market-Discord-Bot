@@ -2,3 +2,4 @@ config.py
 users.db
 myenv
 __pycache__
+.env
